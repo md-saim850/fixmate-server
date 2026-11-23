@@ -1,12 +1,31 @@
-import express from 'express';
+import express from "express";
+import { MongoClient } from 'mongodb';
+import "dotenv/config";
+import serviceRoutes from "./routes/services.js";
 
 const app = express();
-const port = 3000;
+app.use(express.json());
 
-app.get('/', (req, res) => {
-  res.send('Hello World!');
-});
+const PORT = process.env.PORT || 5000;
 
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
+const client = new MongoClient(process.env.MONGODB_URI);
+
+export async function connectToMongoDB() {
+  try {
+    await client.connect();
+    console.log("You successfully connected to MongoDB!");
+    return client;
+
+  } catch (err) {
+    console.dir(err);
+
+  }
+}
+
+// API routes
+app.use("/api/services", serviceRoutes);
+
+
+app.listen(PORT, () => {
+  console.log(`Example app listening on port ${PORT}`);
 });
