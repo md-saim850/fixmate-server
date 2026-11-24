@@ -1,4 +1,7 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
+import { MongoClient } from "mongodb";
+import 'dotenv/config'
+import { ObjectId } from "mongodb";
 
 // Better Auth configuration
 const AUTH_URL = process.env.BETTER_AUTH_URL;
@@ -42,9 +45,12 @@ async function verifyToken(req, res, next) {
     const client = new MongoClient(process.env.MONGODB_URI);
     const db = client.db(process.env.DB_NAME);
 
+
+    if (!ObjectId.isValid(userId)) return;
+      
     const user = await db.collection("user").findOne({
-      _id: userId,
-    });
+      _id: new ObjectId(userId),
+    })
 
     if (!user) {
       return res.status(401).json({

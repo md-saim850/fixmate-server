@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { MongoClient, ObjectId } from "mongodb";
 import 'dotenv/config'
+import { verifyTechnician, verifyToken } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -64,5 +65,97 @@ router.get("/:id", async (req, res) => {
   if (!service) return res.status(404).json({ message: "Service not found" });
   res.json({ service });
 });
+
+router.post("/", verifyToken, verifyTechnician, async (req, res) => {
+  try {
+    const {
+      title,
+      category,
+      description,
+      basePrice,
+      estimatedDuration,
+      serviceMode,
+      image,
+    } = req.body;
+
+    // Validate required fields
+    if (!title || !category || !description || basePrice === undefined || !estimatedDuration || !serviceMode) {
+      return res.status(400).json({
+        success: false,
+        message: "All required fields must be provided",
+      });
+    }
+
+    // Validate price
+    const price = Number(basePrice);
+
+    if (!Number.isFinite(price) || price <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Base price must be a positive number",
+      });
+    }
+
+    // Validate service mode
+    const allowedModes = ["home-visit", "shop-drop-off", "online"];
+
+    if (!allowedModes.includes(serviceMode)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid service mode",
+      });
+    }
+
+    // Validate images
+    if (!Array.isArray(image) || !image.every((image) => typeof image === "string")) {
+      return res.status(400).json({
+        success: false,
+        message: "Image must be an array of strings",
+      });
+    }
+
+    const client = new MongoClient(process.env.MONGODB_URI);
+    const db = client.db(process.env.DB_NAME);
+
+    const serviceData = {
+      title: title.trim(),
+      category: category.trim(),
+      description: description.trim(),
+      basePrice: price,
+      estimatedDuration: estimatedDuration.trim(),
+      serviceMode,
+      image,
+      technician: {
+        id: req.user.id,
+        name: req.user.name,
+        email: req.user.email,
+      },
+      isAvailable: req.body.isAvailable ?? true,
+      approvalStatus: "pending",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const result = await db.collection("services").insertOne(serviceData);
+
+    res.status(201).json({
+      success: true,
+      message: "Service created successfully",
+      service: {
+        _id: result.insertedId,
+        ...serviceData,
+      },
+    });
+
+  } catch (error) {
+      console.error("Create service error:", error);
+
+      res.status(500).json({
+        success: false,
+        message: "Failed to create service",
+      });
+    }
+  }
+);
 
 export default router;
