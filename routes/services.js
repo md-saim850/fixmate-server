@@ -17,60 +17,35 @@ const allowedCategories = [
   "Electrical",
 ];
 
-router.get("/", async (req, res) => {
-  try {
-    const {q, category, mode, sort = "newest", limit = "10",} = req.query;
+router.get("/", async (req, res) => { 
+  const { q, category, mode, sort = "newest", limit = "60" } = req.query;
 
-    const filter = {
-      approvalStatus: "Approved",
-      isAvailable: true,
-    };
+  const filter = {
+    approvalStatus: "approved",
+    isAvailable: true,
+  };
 
-    if (category && allowedCategories.includes(String(category))) {
-      filter.category = String(category);
-    }
-
-    const allowedModes = ["onsite", "online", "both"];
-
-    if (mode && allowedModes.includes(String(mode))) {
-      filter.serviceMode = String(mode);
-    }
-
-    if (q) {
-      filter.$text = { $search: String(q) };
-    }
-
-    const sortOption = 
-      sort === "price-asc" ? { basePrice: 1 } : 
-      sort === "price-desc" ? { basePrice: -1 } : 
-      { createdAt: -1 };
-
-    const safeLimit = Math.min(
-      Math.max(Number(limit) || 60, 1),
-      100
-    );
-
-    const services = await db
-      .collection("services")
-      .find(filter)
-      .sort(sortOption)
-      .limit(safeLimit)
-      .toArray();
-
-    res.status(200).json({
-      success: true,
-      total: services.length,
-      services,
-    });
-
-  } catch (error) {
-    console.error("Get services error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch services",
-    });
+  if (category && allowedCategories.includes(String(category))){
+    filter.category = String(category);
   }
+  if (mode) filter.serviceMode = String(mode);
+  if (q) filter.$text = { $search: String(q) };
+
+  const sortOption =
+    sort === "price-asc"
+      ? { basePrice: 1}
+      : sort === "price-desc"
+        ? { basePrice: -1 }
+        : { createdAt: -1 };
+
+  const services = await db
+    .collection("services")
+    .find(filter)
+    .sort(sortOption)
+    .limit(Math.min(Math.max(Number(limit) || 60, 1), 100))
+    .toArray();
+
+  res.json({ services });
 });
 
 router.get("/:id", async (req, res) => {
@@ -82,7 +57,7 @@ router.get("/:id", async (req, res) => {
     .collection("services")
     .findOne({
       _id: new ObjectId(req.params.id),
-      approvalStatus: "Approved",
+      approvalStatus: "approved",
       isAvailable: true,
     });
 
