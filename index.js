@@ -7,9 +7,12 @@ import serviceRoutes from "./routes/services.js";
 import bookingsRoutes from "./routes/booking.js";
 import technicianRoutes from "./routes/technician.js";
 import customerRoutes from "./routes/customer.js";
+import adminRoutes from "./routes/admin.js";
+
 
 const app = express();
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 const allowedOrigins = [
   "http://localhost:3000",
@@ -53,6 +56,8 @@ app.use("/api/services", serviceRoutes);
 app.use("/api/bookings", bookingsRoutes);
 app.use("/api/technician", technicianRoutes);
 app.use("/api/customer", customerRoutes);
+app.use("/api/admin", adminRoutes);
+
 
 
 app.listen(PORT, () => {

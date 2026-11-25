@@ -163,13 +163,28 @@ router.post("/", verifyToken, verifyTechnician, async (req, res) => {
   }
 );
 
-// Update service availability
+router.get("/:id", async (req, res) => {
+  if (!ObjectId.isValid(req.params.id)){
+    return res.status(404).json({ message: "Service not found" });
+  }
+
+  const service = await db
+    .collection("services")
+    .findOne({
+      _id: new ObjectId(req.params.id),
+      approvalStatus: "approved",
+      isAvailable: true,
+    });
+
+  if (!service) return res.status(404).json({ message: "Service not found" });
+  res.json({ service });
+});
+
 router.patch("/:id/availability", verifyToken, verifyTechnician, async (req, res) => {
   try {
     const { id } = req.params;
     const { isAvailable } = req.body;
 
-    // Validate service ID
     if (!ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
@@ -177,7 +192,6 @@ router.patch("/:id/availability", verifyToken, verifyTechnician, async (req, res
       });
     }
 
-    // Validate availability
     if (typeof isAvailable !== "boolean") {
       return res.status(400).json({
         success: false,
@@ -220,21 +234,99 @@ router.patch("/:id/availability", verifyToken, verifyTechnician, async (req, res
   }
 });
 
-router.get("/:id", async (req, res) => {
-  if (!ObjectId.isValid(req.params.id)){
-    return res.status(404).json({ message: "Service not found" });
-  }
+router.put("/:id", verifyToken, verifyTechnician, async (req, res) => {
+  try {
+    const { id } = req.params;
 
-  const service = await db
-    .collection("services")
-    .findOne({
-      _id: new ObjectId(req.params.id),
-      approvalStatus: "approved",
-      isAvailable: true,
+    const {
+      title,
+      category,
+      description,
+      basePrice,
+      estimatedDuration,
+      serviceMode,
+      serviceArea,
+      image,
+      isAvailable,
+    } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid service ID",
+      });
+    }
+    
+    if (
+      !title?.trim() ||
+      !category ||
+      !description?.trim() ||
+      !serviceMode ||
+      !serviceArea?.trim() ||
+      !estimatedDuration?.trim() ||
+      !Array.isArray(image) ||
+      image.length === 0 ||
+      typeof isAvailable !== "boolean"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide all required fields",
+      });
+    }
+
+    const price = Number(basePrice);
+
+    if (!Number.isFinite(price) || price <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Base price must be a positive number",
+      });
+    }
+
+    // Update only the owner's service
+    const result = await db.
+      collection('services')
+      .updateOne(
+      {
+        _id: new ObjectId(id),
+        "technician.id": req.user.id,
+      },
+      {
+        $set: {
+          title: title.trim(),
+          category,
+          description: description.trim(),
+          basePrice: price,
+          estimatedDuration: estimatedDuration.trim(),
+          serviceMode,
+          serviceArea: serviceArea.trim(),
+          image,
+          isAvailable,
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not found or you are not authorized",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Service updated successfully",
     });
 
-  if (!service) return res.status(404).json({ message: "Service not found" });
-  res.json({ service });
+  } catch (error) {
+    console.error("Update service error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
 });
 
 export default router;

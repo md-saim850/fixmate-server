@@ -115,7 +115,7 @@ router.post("/", verifyToken, verifyCustomer, async (req, res) => {
   }
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", verifyToken, verifyCustomer, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -155,7 +155,6 @@ router.delete("/:id", async (req, res) => {
     });
   }
 });
-
 
 // router.patch("/:id/cancel", verifyToken, verifyCustomer, async (req, res) => {
 //   if (!ObjectId.isValid(req.params.id))
