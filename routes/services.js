@@ -1,9 +1,9 @@
-import { Router } from "express";
+import express from "express";
 import { MongoClient, ObjectId } from "mongodb";
-import 'dotenv/config'
 import { verifyTechnician, verifyToken } from "../middleware/auth.js";
+import 'dotenv/config'
 
-const router = Router();
+const router = express.Router();
 
 const client = new MongoClient(process.env.MONGODB_URI);
 const db = client.db(process.env.DB_NAME);
@@ -49,21 +49,30 @@ router.get("/", async (req, res) => {
   res.json({ services });
 });
 
-router.get("/:id", async (req, res) => {
-  if (!ObjectId.isValid(req.params.id)){
-    return res.status(404).json({ message: "Service not found" });
-  }
+router.get("/my-services", verifyToken, async (req, res) => {
+  try {
+    const services = await db
+      .collection('services')
+      .find({
+        "technician.id": req.user.id,
+      })
+      .sort({ createdAt: -1 })
+      .toArray();
 
-  const service = await db
-    .collection("services")
-    .findOne({
-      _id: new ObjectId(req.params.id),
-      approvalStatus: "approved",
-      isAvailable: true,
+    res.status(200).json({
+      success: true,
+      total: services.length,
+      services,
     });
 
-  if (!service) return res.status(404).json({ message: "Service not found" });
-  res.json({ service });
+  } catch (error) {
+    console.error("My services error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch your services.",
+    });
+  }
 });
 
 router.post("/", verifyToken, verifyTechnician, async (req, res) => {
@@ -125,11 +134,7 @@ router.post("/", verifyToken, verifyTechnician, async (req, res) => {
       estimatedDuration: estimatedDuration.trim(),
       serviceMode,
       image,
-      technician: {
-        id: req.user.id,
-        name: req.user.name,
-        email: req.user.email,
-      },
+      technician: req.user,
       isAvailable: req.body.isAvailable ?? true,
       approvalStatus: "pending",
       createdAt: new Date(),
@@ -157,5 +162,22 @@ router.post("/", verifyToken, verifyTechnician, async (req, res) => {
     }
   }
 );
+  
+router.get("/:id", async (req, res) => {
+  if (!ObjectId.isValid(req.params.id)){
+    return res.status(404).json({ message: "Service not found" });
+  }
+
+  const service = await db
+    .collection("services")
+    .findOne({
+      _id: new ObjectId(req.params.id),
+      approvalStatus: "approved",
+      isAvailable: true,
+    });
+
+  if (!service) return res.status(404).json({ message: "Service not found" });
+  res.json({ service });
+});
 
 export default router;

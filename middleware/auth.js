@@ -23,7 +23,7 @@ async function verifyToken(req, res, next) {
       });
     }
 
-    const token = authHeader.split(" ")[1];
+    const token = authHeader.split(" ")[1]
 
     // 2. Verify JWT signature and claims
     const { payload } = await jwtVerify(token, JWKS, {
@@ -44,9 +44,6 @@ async function verifyToken(req, res, next) {
     // 4. Find user in MongoDB
     const client = new MongoClient(process.env.MONGODB_URI);
     const db = client.db(process.env.DB_NAME);
-
-
-    if (!ObjectId.isValid(userId)) return;
       
     const user = await db.collection("user").findOne({
       _id: new ObjectId(userId),
@@ -59,13 +56,18 @@ async function verifyToken(req, res, next) {
     }
 
     // 5. Attach user information to request
-    req.user = {
+    const {...userData } = user;
+
+    req.user = {  
       id: String(user._id),
       name: user.name,
       email: user.email,
-      role: user.role || "customer",
+      phone: user.phone,
+      role: user.role,
+      area: user.area,
+      bio: user.bio,
+      avatar: user.avatar,
     };
-
     // 6. Continue to the API route
     next();
 

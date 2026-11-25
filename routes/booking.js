@@ -23,8 +23,8 @@ router.get("/my", verifyToken, async (req, res) => {
   res.json({ bookings });
 });
 
-router.post("/", async (req, res) => {
-  console.log(req.user);
+router.post("/", verifyToken, async (req, res) => {
+
   try {
     const { serviceId, address, serviceDate, problemDescription } = req.body;
 
@@ -32,13 +32,15 @@ router.post("/", async (req, res) => {
       return res.status(401).json({
         message: "Please login to book a service.",
       });
-    }
+    };
 
     if (!ObjectId.isValid(serviceId) || !address?.trim() || !serviceDate || String(problemDescription ?? "").trim().length < 20) {
       return res.status(400).json({
-        message: "Please complete all repair request fields.",
+        message: "Please complete all fields.",
       });
     }
+
+    
 
     const bookingDate = new Date(serviceDate);
 
