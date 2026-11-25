@@ -6,6 +6,7 @@ import cors from "cors";
 import serviceRoutes from "./routes/services.js";
 import bookingsRoutes from "./routes/booking.js";
 import technicianRoutes from "./routes/technician.js";
+import customerRoutes from "./routes/customer.js";
 
 const app = express();
 app.use(express.json());
@@ -51,6 +52,8 @@ export async function connectToMongoDB() {
 app.use("/api/services", serviceRoutes);
 app.use("/api/bookings", bookingsRoutes);
 app.use("/api/technician", technicianRoutes);
+app.use("/api/customer", customerRoutes);
+
 
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}`);

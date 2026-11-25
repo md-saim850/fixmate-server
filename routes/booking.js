@@ -40,8 +40,6 @@ router.post("/", verifyToken, async (req, res) => {
       });
     }
 
-    
-
     const bookingDate = new Date(serviceDate);
 
     if (
@@ -91,22 +89,14 @@ router.post("/", verifyToken, async (req, res) => {
       serviceImage: service.image ?? "",
       category: service.category,
       basePrice: service.basePrice,
-
-      technicianName: service.technicianName,
-      technicianEmail: service.technicianEmail,
-
-      // customerName: req.user.name,
-      // customerEmail: req.user.email,
-      // customerPhone: req.user.phone ?? "",
-
+      technician: service.technician,
+      customer: req.user,
       address: address.trim(),
       serviceDate: bookingDate,
       problemDescription: problemDescription.trim(),
-
       status: "requested",
       finalAmount: service.basePrice,
       paymentStatus: "unpaid",
-
       createdAt: new Date(),
     };
 
