@@ -4,7 +4,6 @@ import { MongoClient, ObjectId } from "mongodb";
 import {
   verifyToken,
   verifyCustomer,
-  verifyTechnician,
 } from "../middleware/auth.js";
 
 const router = Router();
@@ -13,17 +12,16 @@ const active = ["requested", "accepted", "in-progress"];
 const client = new MongoClient(process.env.MONGODB_URI);
 const db = client.db(process.env.DB_NAME);
 
-router.get("/my", verifyToken, async (req, res) => {
-  const bookings = db
+router.get("/my", verifyToken, verifyCustomer, async (req, res) => {
+  const bookings = await db
     .collection("bookings")
-    .find({ customerEmail: req.user.email })
-    .find()
+    .find({ "customer.id": req.user.id })
     .sort({ createdAt: -1 })
     .toArray();
   res.json({ bookings });
 });
 
-router.post("/", verifyToken, async (req, res) => {
+router.post("/", verifyToken, verifyCustomer, async (req, res) => {
 
   try {
     const { serviceId, address, serviceDate, problemDescription } = req.body;
@@ -116,6 +114,48 @@ router.post("/", verifyToken, async (req, res) => {
     });
   }
 });
+
+router.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Validate MongoDB ObjectId
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid booking ID",
+      });
+    }
+
+    // Find and delete booking
+    const result = await db
+      .collection("bookings")
+      .deleteOne({
+        _id: new ObjectId(id),
+      });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Booking deleted successfully",
+    });
+
+  } catch (error) {
+    console.error("Delete booking error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete booking",
+    });
+  }
+});
+
 
 // router.patch("/:id/cancel", verifyToken, verifyCustomer, async (req, res) => {
 //   if (!ObjectId.isValid(req.params.id))

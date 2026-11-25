@@ -49,7 +49,7 @@ router.get("/", async (req, res) => {
   res.json({ services });
 });
 
-router.get("/my-services", verifyToken, async (req, res) => {
+router.get("/my-services", verifyToken, verifyTechnician, async (req, res) => {
   try {
     const services = await db
       .collection('services')
@@ -162,7 +162,64 @@ router.post("/", verifyToken, verifyTechnician, async (req, res) => {
     }
   }
 );
-  
+
+// Update service availability
+router.patch("/:id/availability", verifyToken, verifyTechnician, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isAvailable } = req.body;
+
+    // Validate service ID
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid service ID",
+      });
+    }
+
+    // Validate availability
+    if (typeof isAvailable !== "boolean") {
+      return res.status(400).json({
+        success: false,
+        message: "isAvailable must be a boolean",
+      });
+    }
+
+    const result = await db
+      .collection('services')
+      .updateOne(
+        {_id: new ObjectId(id) },
+        {
+          $set: {
+            isAvailable,
+            updatedAt: new Date(),
+          },
+        }
+      );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Service availability updated successfully",
+      isAvailable,
+    });
+
+  } catch (error) {
+    console.error("Update availability error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+});
+
 router.get("/:id", async (req, res) => {
   if (!ObjectId.isValid(req.params.id)){
     return res.status(404).json({ message: "Service not found" });
