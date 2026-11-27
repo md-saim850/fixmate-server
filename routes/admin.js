@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 
 import {
   verifyToken,
@@ -71,7 +71,7 @@ router.get("/users", verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
-router.get("/services", async (req, res) => {
+router.get("/services", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const { approvalStatus } = req.query;
 
@@ -104,7 +104,7 @@ router.get("/services", async (req, res) => {
   }
 });
 
-router.get("/bookings", async (req, res) => {
+router.get("/bookings", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const { status } = req.query;
 
@@ -133,6 +133,67 @@ router.get("/bookings", async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch bookings",
+    });
+  }
+});
+
+router.patch("/users/:userId/role", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { role } = req.body;
+
+    if (!ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID",
+      });
+    }
+
+    const allowedRoles = ["customer", "technician", "admin"];
+
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid role",
+      });
+    }
+
+    if (req.user.id === userId) {
+      return res.status(403).json({
+        success: false,
+        message: "You cannot change your own role",
+      });
+    }
+
+    const result = await db
+      .collection('user')
+      .updateOne(
+      { _id: new ObjectId(userId) },
+      {
+        $set: {
+          role,
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "User role updated successfully",
+    });
+  } catch (error) {
+    console.error("Update user role error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to update user role",
     });
   }
 });
