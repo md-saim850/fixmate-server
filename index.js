@@ -8,6 +8,7 @@ import bookingsRoutes from "./routes/booking.js";
 import technicianRoutes from "./routes/technician.js";
 import customerRoutes from "./routes/customer.js";
 import adminRoutes from "./routes/admin.js";
+import usersRoutes from "./routes/users.js"
 
 
 const app = express();
@@ -57,6 +58,8 @@ app.use("/api/bookings", bookingsRoutes);
 app.use("/api/technician", technicianRoutes);
 app.use("/api/customer", customerRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/users", usersRoutes);
+
 
 
 

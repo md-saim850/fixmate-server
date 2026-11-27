@@ -198,4 +198,64 @@ router.patch("/users/:userId/role", verifyToken, verifyAdmin, async (req, res) =
   }
 });
 
+router.patch("/services/:id/approval", verifyToken, verifyAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { approvalStatus } = req.body;
+
+      const allowedStatuses = ["approved", "rejected"];
+
+      if (!allowedStatuses.includes(approvalStatus)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid approval status",
+        });
+      }
+
+      const service = await db
+      .collection("services")
+      .findOne({
+        _id: new ObjectId(id),
+      });
+
+      if (!service) {
+        return res.status(404).json({
+          success: false,
+          message: "Service not found",
+        });
+      }
+
+      const result = await db
+        .collection("services")
+        .updateOne({ _id: new ObjectId(id) },
+        {
+          $set: {
+            approvalStatus,
+            updatedAt: new Date(),
+          },
+        }
+      );
+
+      if (result.modifiedCount === 0) {
+        return res.status(200).json({
+          success: true,
+          message: "Service approval status is already up to date",
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: `Service ${approvalStatus} successfully`,
+      });
+    } catch (error) {
+      console.error("Update service approval error:", error);
+
+      res.status(500).json({
+        success: false,
+        message: "Failed to update service approval status",
+      });
+    }
+  }
+);
+
 export default router;
