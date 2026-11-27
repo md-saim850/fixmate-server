@@ -115,6 +115,42 @@ router.post("/", verifyToken, verifyCustomer, async (req, res) => {
   }
 });
 
+router.get("/:id", verifyToken, verifyCustomer, async(req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid booking ID",
+      });
+    }
+
+    const booking = await db.collection("bookings").findOne({
+      _id: new ObjectId(id),
+    });
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      booking,
+    });
+  } catch (error) {
+    console.error("Get booking error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to get booking",
+    });
+  }
+})
+
 router.delete("/:id", verifyToken, verifyCustomer, async (req, res) => {
   try {
     const { id } = req.params;
@@ -155,84 +191,5 @@ router.delete("/:id", verifyToken, verifyCustomer, async (req, res) => {
     });
   }
 });
-
-// router.patch("/:id/cancel", verifyToken, verifyCustomer, async (req, res) => {
-//   if (!ObjectId.isValid(req.params.id))
-//     return res.status(404).json({ message: "Booking not found" });
-//   const result = await getDb()
-//     .collection("bookings")
-//     .updateOne(
-//       {
-//         _id: new ObjectId(req.params.id),
-//         customerEmail: req.user!.email,
-//         status: "requested",
-//       },
-//       { $set: { status: "cancelled", updatedAt: new Date() } },
-//     );
-//   if (!result.modifiedCount)
-//     return res
-//       .status(409)
-//       .json({ message: "Only requested bookings can be cancelled" });
-//   res.json({ success: true });
-// });
-
-// router.get("/technician", verifyToken, verifyTechnician, async (req, res) => {
-//   const bookings = await getDb()
-//     .collection("bookings")
-//     .find({ technicianEmail: req.user!.email })
-//     .sort({ createdAt: -1 })
-//     .toArray();
-//   res.json({ bookings });
-// });
-
-// router.patch("/:id/status", verifyToken, verifyTechnician, async (req, res) => {
-//   if (!ObjectId.isValid(req.params.id))
-//     return res.status(404).json({ message: "Booking not found" });
-//   const { status, finalAmount } = req.body;
-//   const transitions: Record<string, string> = {
-//     requested: "accepted",
-//     accepted: "in-progress",
-//     "in-progress": "completed",
-//   };
-//   if (!["accepted", "rejected", "in-progress", "completed"].includes(status))
-//     return res.status(400).json({ message: "Invalid next status" });
-//   const db = getDb();
-//   const booking = await db
-//     .collection("bookings")
-//     .findOne({
-//       _id: new ObjectId(req.params.id),
-//       technicianEmail: req.user!.email,
-//     });
-//   if (!booking) return res.status(404).json({ message: "Booking not found" });
-//   const valid =
-//     status === "rejected"
-//       ? booking.status === "requested"
-//       : transitions[booking.status as string] === status;
-//   if (!valid)
-//     return res.status(409).json({ message: "Invalid job status transition" });
-//   if (
-//     status === "completed" &&
-//     (!Number.isFinite(finalAmount) || finalAmount <= 0)
-//   )
-//     return res
-//       .status(400)
-//       .json({ message: "Final amount must be greater than zero" });
-//   await db
-//     .collection("bookings")
-//     .updateOne(
-//       {
-//         _id: booking._id,
-//         technicianEmail: req.user!.email,
-//         status: booking.status,
-//       },
-//       {
-//         $set: {
-//           status,
-//           ...(status === "completed" ? { finalAmount } : {}),
-//           updatedAt: new Date(),
-//         },
-//       },
-//     );
-// });
 
 export default router;

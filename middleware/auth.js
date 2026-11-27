@@ -3,18 +3,14 @@ import { MongoClient } from "mongodb";
 import 'dotenv/config'
 import { ObjectId } from "mongodb";
 
-// Better Auth configuration
 const AUTH_URL = process.env.BETTER_AUTH_URL;
 
-// Get public keys from Better Auth
 const JWKS = createRemoteJWKSet(
   new URL(`${AUTH_URL}/api/auth/jwks`)
 );
 
-// Verify user token
 async function verifyToken(req, res, next) {
   try {
-    // 1. Get token from request header
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -25,14 +21,12 @@ async function verifyToken(req, res, next) {
 
     const token = authHeader.split(" ")[1]
 
-    // 2. Verify JWT signature and claims
     const { payload } = await jwtVerify(token, JWKS, {
       issuer: AUTH_URL,
       audience: AUTH_URL,
       algorithms: ["EdDSA"],
     });
 
-    // 3. Get user ID from token
     const userId = payload.sub;
 
     if (!userId) {
@@ -41,7 +35,6 @@ async function verifyToken(req, res, next) {
       });
     }
 
-    // 4. Find user in MongoDB
     const client = new MongoClient(process.env.MONGODB_URI);
     const db = client.db(process.env.DB_NAME);
       
@@ -55,7 +48,6 @@ async function verifyToken(req, res, next) {
       });
     }
 
-    // 5. Attach user information to request
     const {...userData } = user;
 
     req.user = {  
@@ -68,7 +60,7 @@ async function verifyToken(req, res, next) {
       bio: user.bio,
       avatar: user.avatar,
     };
-    // 6. Continue to the API route
+
     next();
 
   } catch (error) {
@@ -80,7 +72,6 @@ async function verifyToken(req, res, next) {
   }
 }
 
-// Check user role
 function allowRole(requiredRole) {
   return (req, res, next) => {
     if (req.user?.role !== requiredRole) {
@@ -93,7 +84,6 @@ function allowRole(requiredRole) {
   };
 }
 
-// Export middleware
 export { verifyToken, allowRole };
 
 export const verifyCustomer = allowRole("customer");
