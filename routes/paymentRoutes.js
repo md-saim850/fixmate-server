@@ -1,7 +1,7 @@
 import express from "express";
 import Stripe from "stripe";
 import { MongoClient, ObjectId } from "mongodb";
-import { verifyCustomer, verifyToken } from "../middleware/auth";
+import { verifyCustomer, verifyToken } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -104,7 +104,7 @@ router.post("/webhook",express.raw({ type: "application/json" }),async (req, res
   }
 );
 
-router.get("/verify-session", verifyToken, verifyCustomer, async (req, res) => {
+router.get("/verify-session", async (req, res) => {
   try {
     const { sessionId } = req.query;
 
@@ -145,31 +145,84 @@ router.get("/verify-session", verifyToken, verifyCustomer, async (req, res) => {
       });
     }
 
-    // Save payment in MongoDB
+    const booking = await db.collection("bookings").findOne({
+      _id: new ObjectId(bookingId),
+      "customer.id": userId,
+    });
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+      });
+    }
+
+    const service = await db.collection("services").findOne({
+      _id: new ObjectId(booking.serviceId),
+    });
+
     await db.collection("payments").updateOne(
-      { stripeSessionId: session.id },
+      {
+        stripeSessionId: session.id,
+      },
       {
         $set: {
-          bookingId: new ObjectId(bookingId),
+          // Payment information
+          bookingId: booking._id,
           userId: new ObjectId(userId),
+
           stripeSessionId: session.id,
           stripePaymentIntentId: session.payment_intent,
+
           amount: session.amount_total / 100,
           currency: session.currency,
           status: "paid",
+
           customerEmail: session.customer_details?.email,
           customerName: session.customer_details?.name,
+
+          // Booking information
+          booking: {
+            id: booking._id,
+            serviceId: booking.serviceId,
+            serviceTitle: booking.serviceTitle,
+            serviceImage: booking.serviceImage,
+            category: booking.category,
+            basePrice: booking.basePrice,
+            finalAmount: booking.finalAmount,
+            serviceDate: booking.serviceDate,
+            address: booking.address,
+            problemDescription: booking.problemDescription,
+            status: booking.status,
+            paymentStatus: "paid",
+            paidAt: new Date(),
+          },
+
+          service:{
+            _id:service.id,
+            title:service.title,
+          },
+
+          // Customer information
+          customer: booking.customer,
+
+          // Technician information
+          technician: booking.technician,
+
           updatedAt: new Date(),
         },
+
         $setOnInsert: {
           createdAt: new Date(),
         },
       },
-      { upsert: true }
+      {
+        upsert: true,
+      }
     );
 
-    // Update booking payment status
-    const result = await db.collection("bookings").updateOne(
+    // 3. Update booking payment status
+    await db.collection("bookings").updateOne(
       {
         _id: new ObjectId(bookingId),
         "customer.id": userId,
@@ -181,7 +234,7 @@ router.get("/verify-session", verifyToken, verifyCustomer, async (req, res) => {
           updatedAt: new Date(),
         },
       }
-    )
+    );
 
     return res.status(200).json({
       success: true,
@@ -210,7 +263,9 @@ router.get("/customer", verifyToken, verifyCustomer, async (req, res) => {
 
     const payments = await db
       .collection("payments")
-      .find({ userId: userId })
+      .find({
+        userId: new ObjectId(userId),
+      })
       .sort({ createdAt: -1 })
       .toArray();
 
@@ -228,4 +283,5 @@ router.get("/customer", verifyToken, verifyCustomer, async (req, res) => {
     });
   }
 });
+
 export default router;

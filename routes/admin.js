@@ -120,7 +120,6 @@ router.get("/bookings", verifyToken, verifyAdmin, async (req, res) => {
       .sort({ createdAt: -1 })
       .toArray();
 
-      console.log(bookings);
     return res.status(200).json({
       success: true,
       totalBookings: bookings.length,
@@ -133,6 +132,50 @@ router.get("/bookings", verifyToken, verifyAdmin, async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch bookings",
+    });
+  }
+});
+
+router.get('/transactions',verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const paymentsCollection = db.collection("payments");
+
+    const transactions = await paymentsCollection
+      .find({})
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    const revenueResult = await paymentsCollection
+      .aggregate([
+        {
+          $match: {
+            status: "paid",
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalRevenue: { $sum: "$amount" },
+          },
+        },
+      ])
+      .toArray();
+
+    const totalRevenue = revenueResult[0]?.totalRevenue || 0;
+
+    res.status(200).json({
+      success: true,
+      totalTransactions: transactions.length,
+      totalRevenue,
+      transactions,
+    });
+
+  } catch (error) {
+    console.error("Get admin transactions error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch transactions",
     });
   }
 });
