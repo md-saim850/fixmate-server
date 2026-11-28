@@ -10,6 +10,7 @@ import customerRoutes from "./routes/customer.js";
 import adminRoutes from "./routes/admin.js";
 import usersRoutes from "./routes/users.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
+
 const app = express();
 
 const allowedOrigins = [
